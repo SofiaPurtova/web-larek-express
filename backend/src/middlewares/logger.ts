@@ -1,21 +1,27 @@
-import winston from 'winston';
+import winston, { format } from 'winston';
 import expressWinston from 'express-winston';
+import { Request } from 'express';
+
+// Определяем тип, совместимый с TransformableInfo
+interface TransformableLogInfo extends winston.Logform.TransformableInfo {
+  req?: Request;
+}
 
 // Форматирование для читаемого JSON
-const jsonFormat = winston.format.combine(
-  winston.format.timestamp(),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+const jsonFormat = format.combine(
+  format.timestamp(),
+  format.printf(({ timestamp, level, message, ...meta }) => {
     return JSON.stringify({
       timestamp,
       level,
       message,
       ...meta
-    }, null, 2); // Отступы для читаемости
+    }, null, 2);
   })
 );
 
 // Фильтр для чувствительных данных
-const sensitiveDataFilter = winston.format((info) => {
+const sensitiveDataFilter = format((info: TransformableLogInfo) => {
   if (info.req?.headers?.authorization) {
     info.req.headers.authorization = '***';
   }
@@ -32,7 +38,7 @@ export const requestLogger = expressWinston.logger({
       level: 'info'
     }),
   ],
-  format: winston.format.combine(
+  format: format.combine(
     sensitiveDataFilter(),
     jsonFormat
   ),
@@ -49,16 +55,16 @@ export const errorLogger = expressWinston.errorLogger({
   transports: [
     new winston.transports.File({ 
       filename: 'error.log',
-      level: 'error'
+      level: 'error',
+      handleExceptions: true
     }),
   ],
-  format: winston.format.combine(
+  format: format.combine(
     sensitiveDataFilter(),
     jsonFormat
   ),
   metaField: 'context',
   requestWhitelist: ['method', 'url', 'body', 'query'],
   msg: '{{err.message}}',
-  dumpExceptions: false,
-  showStack: false
+  level: 'error'
 });
