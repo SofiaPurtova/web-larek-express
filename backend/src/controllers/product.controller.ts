@@ -27,49 +27,26 @@ export const createProduct = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const {
-      title,
-      description,
-      price,
-      category,
-      image,
-    } = req.body;
-
-    // Валидация обязательных полей
-    if (!title || title.length < 2 || title.length > 30) {
-      throw new BadRequestError('Название товара должно быть от 2 до 30 символов');
-    }
-    if (!category) {
-      throw new BadRequestError('Категория товара обязательна');
-    }
-    if (!image || !image.fileName || !image.originalName) {
-      throw new BadRequestError('Изображение товара обязательно');
-    }
-    if (price === undefined || price === null) {
-      throw new BadRequestError('Цена товара обязательна');
-    }
-
-    const product = new Product({
-      title,
-      description,
-      price,
-      category,
-      image,
-    });
-
+    const product = new Product(req.body);
     await product.save();
-    res.status(201).json(product);
+
+    res.status(201).json({
+      _id: product._id,
+      title: product.title,
+      price: product.price,
+      category: product.category,
+      image: product.image,
+    });
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
-      next(new BadRequestError('Некорректные данные товара'));
+      const messages = Object.values(err.errors).map((e) => e.message);
+      next(new BadRequestError(messages.join(', ')));
       return;
     }
-
     if (err instanceof Error && err.message.includes('E11000')) {
       next(new ConflictError('Товар с таким названием уже существует'));
       return;
     }
-
-    next(err instanceof Error ? err : new ServerError());
+    next(new ServerError('Ошибка при создании товара'));
   }
 };

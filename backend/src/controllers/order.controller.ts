@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { faker } from '@faker-js/faker';
+import mongoose from 'mongoose';
+import AppError from '../errors/app-error';
 import Product from '../models/product';
 import BadRequestError from '../errors/bad-request-error';
 import ServerError from '../errors/server-error';
@@ -12,75 +13,45 @@ export default async function createOrder(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const {
-      payment, email, phone, address, total, items,
-    } = req.body;
+    const { items } = req.body as { items: string[] };
 
-    // Проверка обязательных полей
-    const requiredFields = {
-      payment, email, phone, address, total, items,
-    };
-    const missingField = Object.entries(requiredFields)
-      .find(([_, value]) => value === undefined || value === null);
-
-    if (missingField) {
-      throw new BadRequestError(`Поле ${missingField[0]} обязательно`);
+    // Проверяем, что все items являются валидными ObjectId
+    const invalidIds = items.filter((id: string) => !mongoose.Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestError(`Некорректные ID товаров: ${invalidIds.join(', ')}`);
     }
 
-    // Валидация email
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new BadRequestError('Некорректный email');
-    }
-
-    // Валидация phone
-    if (!/^\+?\d{10,15}$/.test(phone)) {
-      throw new BadRequestError('Некорректный номер телефона');
-    }
-
-    // Валидация payment
-    if (!['card', 'online'].includes(payment)) {
-      throw new BadRequestError('Некорректный метод оплаты');
-    }
-
-    // Проверка items
-    if (!Array.isArray(items) || items.length === 0) {
-      throw new BadRequestError('Необходимо указать хотя бы один товар');
-    }
-
-    // Проверка формата ID товаров
-    if (items.some((id: string) => !mongoose.Types.ObjectId.isValid(id))) {
-      throw new BadRequestError('Некорректный формат ID товаров');
-    }
-
-    // Проверка существования товаров
     const products = await Product.find({ _id: { $in: items } });
+
     if (products.length !== items.length) {
-      throw new ConflictError('Некоторые товары не найдены');
+      const missingIds = items.filter(
+        (id: string) => !products.some((p) => p._id.toString() === id),
+      );
+      throw new ConflictError(`Товары не найдены: ${missingIds.join(', ')}`);
     }
 
-    // Проверка цен товаров
-    if (products.some((p) => p.price === null || p.price === undefined)) {
-      throw new BadRequestError('Некоторые товары не имеют цены');
-    }
+    const calculatedTotal = products.reduce((sum: number, p) => sum + (p.price || 0), 0);
 
-    // Расчет суммы
-    const calculatedTotal = products.reduce((sum, p) => sum + (p.price || 0), 0);
-    if (total !== calculatedTotal) {
+    if (req.body.total !== calculatedTotal) {
       throw new BadRequestError(
-        `Неверная сумма заказа. Ожидалось: ${calculatedTotal}, получено: ${total}`,
+        `Неверная сумма заказа. Ожидалось: ${calculatedTotal}, получено: ${req.body.total}`,
       );
     }
 
-    // Создание заказа
     res.status(200).json({
       id: faker.string.uuid(),
       total: calculatedTotal,
+      items: products.map((p) => ({
+        id: p._id,
+        title: p.title,
+        price: p.price,
+      })),
     });
   } catch (err) {
-    if (err instanceof mongoose.Error.CastError) {
-      next(new BadRequestError('Некорректный формат данных'));
+    if (err instanceof AppError) {
+      next(err);
       return;
     }
-    next(err instanceof Error ? err : new ServerError());
+    next(new ServerError('Ошибка при создании заказа'));
   }
 }
