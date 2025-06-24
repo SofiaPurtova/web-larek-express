@@ -2,21 +2,29 @@ import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { faker } from '@faker-js/faker';
 import Product from '../models/product';
+import BadRequestError from '../errors/bad-request-error';
+import ServerError from '../errors/server-error';
+import ConflictError from '../errors/conflict-error';
 
-import { BadRequestError } from '../errors/bad-request-error';
-import { ServerError } from '../errors/server-error';
-import { ConflictError } from '../errors/conflict-error';
-
-export const createOrder = async (req: Request, res: Response, next: NextFunction) => {
+export default async function createOrder(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { payment, email, phone, address, total, items } = req.body;
+    const {
+      payment, email, phone, address, total, items,
+    } = req.body;
 
     // Проверка обязательных полей
-    const requiredFields = { payment, email, phone, address, total, items };
-    for (const [field, value] of Object.entries(requiredFields)) {
-      if (value === undefined || value === null) {
-        throw new BadRequestError(`Поле ${field} обязательно`);
-      }
+    const requiredFields = {
+      payment, email, phone, address, total, items,
+    };
+    const missingField = Object.entries(requiredFields)
+      .find(([_, value]) => value === undefined || value === null);
+
+    if (missingField) {
+      throw new BadRequestError(`Поле ${missingField[0]} обязательно`);
     }
 
     // Валидация email
@@ -40,8 +48,7 @@ export const createOrder = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Проверка формата ID товаров
-    const invalidIds = items.some((id: string) => !mongoose.Types.ObjectId.isValid(id));
-    if (invalidIds) {
+    if (items.some((id: string) => !mongoose.Types.ObjectId.isValid(id))) {
       throw new BadRequestError('Некорректный формат ID товаров');
     }
 
@@ -52,27 +59,28 @@ export const createOrder = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Проверка цен товаров
-    const productsWithInvalidPrice = products.filter(p => p.price === null || p.price === undefined);
-    if (productsWithInvalidPrice.length > 0) {
+    if (products.some((p) => p.price === null || p.price === undefined)) {
       throw new BadRequestError('Некоторые товары не имеют цены');
     }
 
     // Расчет суммы
     const calculatedTotal = products.reduce((sum, p) => sum + (p.price || 0), 0);
     if (total !== calculatedTotal) {
-      throw new BadRequestError(`Неверная сумма заказа. Ожидалось: ${calculatedTotal}, получено: ${total}`);
+      throw new BadRequestError(
+        `Неверная сумма заказа. Ожидалось: ${calculatedTotal}, получено: ${total}`,
+      );
     }
 
     // Создание заказа
     res.status(200).json({
       id: faker.string.uuid(),
-      total: calculatedTotal
+      total: calculatedTotal,
     });
-
   } catch (err) {
     if (err instanceof mongoose.Error.CastError) {
-      return next(new BadRequestError('Некорректный формат данных'));
+      next(new BadRequestError('Некорректный формат данных'));
+      return;
     }
     next(err instanceof Error ? err : new ServerError());
   }
-};
+}

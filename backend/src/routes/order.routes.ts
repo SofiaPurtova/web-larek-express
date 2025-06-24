@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { celebrate, Joi } from 'celebrate';
-import { createOrder } from '../controllers/order.controller';
+import createOrder from '../controllers/order.controller';
 
 const router = Router();
 
@@ -14,11 +14,11 @@ router.post(
       address: Joi.string().required(),
       total: Joi.number().min(0).required(),
       items: Joi.array().items(
-        Joi.string().pattern(/^[0-9a-fA-F]{24}$/) // Проверка на ObjectId
-      ).min(1).required()
-    })
+        Joi.string().pattern(/^[0-9a-fA-F]{24}$/), // Проверка на ObjectId
+      ).min(1).required(),
+    }),
   }),
-  createOrder
+  createOrder,
 );
 
 export default router;

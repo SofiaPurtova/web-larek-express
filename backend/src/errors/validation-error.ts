@@ -1,6 +1,6 @@
-import { AppError } from "./app-error";
+import AppError from './app-error';
 
-export class ValidationError extends AppError {
+export default class ValidationError extends AppError {
   details: Record<string, string>;
 
   constructor(message: string, details: Record<string, string>) {

@@ -1,6 +1,6 @@
-import { AppError } from './app-error';
+import AppError from './app-error';
 
-export class ServerError extends AppError {
+export default class ServerError extends AppError {
   constructor(message: string = 'На сервере произошла ошибка') {
     super(message, 500);
   }

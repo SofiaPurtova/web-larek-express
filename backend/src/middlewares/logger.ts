@@ -10,37 +10,47 @@ interface TransformableLogInfo extends winston.Logform.TransformableInfo {
 // Форматирование для читаемого JSON
 const jsonFormat = format.combine(
   format.timestamp(),
-  format.printf(({ timestamp, level, message, ...meta }) => {
-    return JSON.stringify({
-      timestamp,
-      level,
-      message,
-      ...meta
-    }, null, 2);
-  })
+  format.printf(({
+    timestamp, level, message, ...meta
+  }) => JSON.stringify({
+    timestamp,
+    level,
+    message,
+    ...meta,
+  }, null, 2)),
 );
 
-// Фильтр для чувствительных данных
+// Фильтр для чувствительных данных (исправленный, без мутации параметра)
 const sensitiveDataFilter = format((info: TransformableLogInfo) => {
-  if (info.req?.headers?.authorization) {
-    info.req.headers.authorization = '***';
+  const filteredInfo = { ...info }; // Создаем копию объекта
+
+  if (filteredInfo.req?.headers?.authorization) {
+    filteredInfo.req.headers = {
+      ...filteredInfo.req.headers,
+      authorization: '***', // Заменяем без мутации
+    };
   }
-  if (info.req?.body?.password) {
-    info.req.body.password = '***';
+
+  if (filteredInfo.req?.body?.password) {
+    filteredInfo.req.body = {
+      ...filteredInfo.req.body,
+      password: '***', // Заменяем без мутации
+    };
   }
-  return info;
+
+  return filteredInfo;
 });
 
 export const requestLogger = expressWinston.logger({
   transports: [
-    new winston.transports.File({ 
+    new winston.transports.File({
       filename: 'request.log',
-      level: 'info'
+      level: 'info',
     }),
   ],
   format: format.combine(
     sensitiveDataFilter(),
-    jsonFormat
+    jsonFormat,
   ),
   meta: true,
   metaField: 'context',
@@ -48,23 +58,23 @@ export const requestLogger = expressWinston.logger({
   expressFormat: true,
   ignoreRoute: (req) => req.url === '/healthcheck',
   requestWhitelist: ['method', 'url', 'body', 'query'],
-  responseWhitelist: ['statusCode', 'responseTime']
+  responseWhitelist: ['statusCode', 'responseTime'],
 });
 
 export const errorLogger = expressWinston.errorLogger({
   transports: [
-    new winston.transports.File({ 
+    new winston.transports.File({
       filename: 'error.log',
       level: 'error',
-      handleExceptions: true
+      handleExceptions: true,
     }),
   ],
   format: format.combine(
     sensitiveDataFilter(),
-    jsonFormat
+    jsonFormat,
   ),
   metaField: 'context',
   requestWhitelist: ['method', 'url', 'body', 'query'],
   msg: '{{err.message}}',
-  level: 'error'
+  level: 'error',
 });

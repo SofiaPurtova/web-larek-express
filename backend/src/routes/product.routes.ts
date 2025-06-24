@@ -16,18 +16,18 @@ router.post(
         .messages({
           'string.min': 'Минимальная длина названия — 2 символа',
           'string.max': 'Максимальная длина названия — 30 символов',
-          'any.required': 'Название товара обязательно'
+          'any.required': 'Название товара обязательно',
         }),
       image: Joi.object({
         fileName: Joi.string().required(),
-        originalName: Joi.string().required()
+        originalName: Joi.string().required(),
       }).required(),
       category: Joi.string().required(),
       description: Joi.string(),
-      price: Joi.number().min(0)
-    })
+      price: Joi.number().min(0),
+    }),
   }),
-  createProduct
+  createProduct,
 );
 
 export default router;
