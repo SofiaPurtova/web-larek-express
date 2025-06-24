@@ -5,10 +5,14 @@ import ServerError from '../errors/server-error';
 import BadRequestError from '../errors/bad-request-error';
 import Product from '../models/product';
 
-export const getProducts = async (_req: Request, res: Response, next: NextFunction) => {
+export const getProducts = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const products = await Product.find();
-    res.json({
+    res.status(200).json({
       items: products,
       total: products.length,
     });
@@ -17,9 +21,42 @@ export const getProducts = async (_req: Request, res: Response, next: NextFuncti
   }
 };
 
-export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
+export const createProduct = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const product = new Product(req.body);
+    const {
+      title,
+      description,
+      price,
+      category,
+      image,
+    } = req.body;
+
+    // Валидация обязательных полей
+    if (!title || title.length < 2 || title.length > 30) {
+      throw new BadRequestError('Название товара должно быть от 2 до 30 символов');
+    }
+    if (!category) {
+      throw new BadRequestError('Категория товара обязательна');
+    }
+    if (!image || !image.fileName || !image.originalName) {
+      throw new BadRequestError('Изображение товара обязательно');
+    }
+    if (price === undefined || price === null) {
+      throw new BadRequestError('Цена товара обязательна');
+    }
+
+    const product = new Product({
+      title,
+      description,
+      price,
+      category,
+      image,
+    });
+
     await product.save();
     res.status(201).json(product);
   } catch (err) {
@@ -33,6 +70,6 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    next(new ServerError());
+    next(err instanceof Error ? err : new ServerError());
   }
 };
