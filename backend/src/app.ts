@@ -34,9 +34,6 @@ mongoose.connect(DB_URL)
     console.error('DB error', err);
   });
 
-app.use('/api/product', productRoutes);
-app.use('/api/order', orderRoutes);
-
 // Простой тестовый роут
 app.get('/', (_req, res) => {
   res.json({ message: 'Server is running!' });
@@ -45,6 +42,11 @@ app.get('/', (_req, res) => {
 app.use(errorLogger);
 app.use(errors());
 
+// Маршруты
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+
+// Обработка 404
 app.use((_req: Request, _res: Response, next: NextFunction) => {
   next(new NotFoundError('Маршрут не найден'));
 });
