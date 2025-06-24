@@ -7,64 +7,30 @@ import Product from '../models/product';
 
 export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Проверка подключения к БД
-    if (mongoose.connection.readyState !== 1) {
-      throw new ServerError('Нет подключения к базе данных');
-    }
-
-    const products = await Product.find().select('-__v');
-    
-    if (!products) {
-      throw new ServerError('Не удалось получить товары');
-    }
-
-    res.status(200).json({
+    const products = await Product.find();
+    res.json({
       items: products,
       total: products.length
     });
   } catch (err) {
-    next(err instanceof Error ? err : new ServerError());
+    next(new ServerError());
   }
 };
 
 export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { title, image, category, description, price } = req.body;
-
-    // Ручная проверка обязательных полей
-    if (!title || !image || !category) {
-      throw new BadRequestError('Необходимо указать title, image и category');
-    }
-
-    if (!image.fileName || !image.originalName) {
-      throw new BadRequestError('Необходимо указать fileName и originalName для изображения');
-    }
-
-    const product = new Product({
-      title,
-      image,
-      category,
-      description,
-      price: price || 0 // Устанавливаем цену по умолчанию
-    });
-
-    const savedProduct = await product.save();
-    
-    // Удаляем __v из ответа
-    const productResponse = savedProduct.toObject();
-    // delete productResponse.__v;
-
-    res.status(201).json(productResponse);
+    const product = new Product(req.body);
+    await product.save();
+    res.status(201).json(product);
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
-      const messages = Object.values(err.errors).map(e => e.message);
-      return next(new BadRequestError(messages.join(', ')));
+      return next(new BadRequestError('Некорректные данные товара'));
     }
     
     if (err instanceof Error && err.message.includes('E11000')) {
       return next(new ConflictError('Товар с таким названием уже существует'));
     }
     
-    next(err instanceof Error ? err : new ServerError());
+    next(new ServerError());
   }
 };
