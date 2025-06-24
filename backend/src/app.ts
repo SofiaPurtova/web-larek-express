@@ -19,12 +19,14 @@ const app = express();
 app.use(cors());
 // Добавляем middleware для парсинга JSON
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-mongoose.connect(DB_URL).then(() => console.log('MongoDB connected!')).catch((err) => console.log('DB error', err));;
+mongoose.connect(DB_URL)
+.then(() => console.log('MongoDB connected!'))
+.catch((err) => console.log('DB error', err));
 
 app.use('/product', productRoutes);
 app.use('/order', orderRoutes);

@@ -31,7 +31,7 @@ const productSchema = new Schema({
   price: {
     type: Number,
     min: [0, 'Цена не может быть отрицательной'],
-    default: null
+    required: true
   }
 }, {
   versionKey: false // Отключаем поле __v
