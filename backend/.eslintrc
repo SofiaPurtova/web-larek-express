@@ -44,6 +44,7 @@
         "varsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_"
       }
-    ]
+    ],
+    "linebreak-style": ["error", "unix"]
   }
 }
