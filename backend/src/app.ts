@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import cors from 'cors';
@@ -44,16 +45,16 @@ app.get('/', (_req, res) => {
   res.json({ message: 'Server is running!' });
 });
 
-// 7. Логгер ошибок
-app.use(errorLogger);
-
-// 8. Обработчик ошибок celebrate
-app.use(errors());
-
-// 9. Обработка 404
+// 7. Обработка 404
 app.use((_req: Request, _res: Response, next: NextFunction) => {
   next(new NotFoundError('Маршрут не найден'));
 });
+
+// 8. Логгер ошибок
+app.use(errorLogger);
+
+// 9. Обработчик ошибок celebrate
+app.use(errors());
 
 // 10. Финальный обработчик ошибок
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
